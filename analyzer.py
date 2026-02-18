@@ -427,6 +427,61 @@ def _generate_text_report(analysis: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _extract_top_level_metadata(root):
+    meta = {
+        "organization": None,
+        "environment": None,
+        "api": None,
+        "revision": None,
+        "sessionId": None,
+        "retrieved": None,
+        # extras:
+        "virtualhost": None,
+        "proxyUrl": None,
+    }
+
+    # 1) Tags top-level (DebugSession children)
+    tl_map = {
+        "organization": ["organization"],
+        "environment": ["environment"],
+        "api": ["api"],
+        "revision": ["revision"],
+        "sessionId": ["sessionid", "session-id", "session_id"],
+        "retrieved": ["retrieved"],
+    }
+    for el in root:
+        tag = (el.tag or "").lower()
+        text = (el.text or "").strip()
+        for key, names in tl_map.items():
+            if tag in names and text:
+                meta[key] = text
+
+    # 2) Propiedades de FlowInfo / DebugInfo / Properties
+    for p in root.iter():
+        t = (p.tag or "").lower()
+        if not t.endswith("properties"):
+            continue
+        for prop in p.iter():
+            if (prop.tag or "").lower().endswith("property"):
+                name = (prop.get("name") or "").lower()
+                val = (prop.text or "").strip()
+                if not val:
+                    continue
+                if name == "organization.name" and not meta["organization"]:
+                    meta["organization"] = val
+                elif name == "environment.name" and not meta["environment"]:
+                    meta["environment"] = val
+                elif name == "apiproxy.name" and not meta["api"]:
+                    meta["api"] = val
+                elif name == "apiproxy.revision" and not meta["revision"]:
+                    meta["revision"] = val
+                elif name == "virtualhost.name" and not meta["virtualhost"]:
+                    meta["virtualhost"] = val
+                elif name == "proxy.url" and not meta["proxyUrl"]:
+                    meta["proxyUrl"] = val
+
+    return meta
+
 # -------------------- función pública --------------------
 def analyze_trace(xml_content: str, verbose: bool = False) -> Dict[str, Any]:
     """
@@ -501,6 +556,8 @@ def analyze_trace(xml_content: str, verbose: bool = False) -> Dict[str, Any]:
 
     # 7) Reporte de texto
     analysis["report_text"] = _generate_text_report(analysis)
+    
+    analysis["metadata"] = _extract_top_level_metadata(root)
 
     # Éxito
     analysis["status"] = "ok"
