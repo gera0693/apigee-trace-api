@@ -7,42 +7,81 @@ import xml.etree.ElementTree as ET
 PLAYBOOK_LINKS: Dict[str, Dict[str, List[Dict[str, str]]]] = {
     "status": {
         "400": [
-            {"title": "Troubleshoot 400 Bad Request", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"},
-            {"title": "Apigee Debugging Request Validation", "url": "https://cloud.google.com/apigee/docs/api-platform/reference/policies"},
+            {"title": "HTTP 400 - Client Error Deep Dive",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"},
+            {"title": "RaiseFault Policy Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/policies/raise-fault"},
+            {"title": "JSON Threat Protection Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/policies/json-threat-protection"}
         ],
+
         "401": [
-            {"title": "OAuth 2.0 Access Tokens (Apigee)", "url": "https://cloud.google.com/apigee/docs/api-platform/security/oauth/overview"},
-            {"title": "JWT Verification Guidance", "url": "https://cloud.google.com/apigee/docs/api-platform/security/oauth/using-jwt"},
+            {"title": "OAuthV2 Troubleshooting (Apigee)",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/policies/oauthv2"},
+            {"title": "JWT Validation & Clock Skew",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/security/oauth/using-jwt"},
+            {"title": "VerifyAccessToken Debugging",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/reference/policies/oauthv2-policy"}
         ],
+
         "403": [
-            {"title": "Troubleshoot 403 Forbidden", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"},
-            {"title": "Apigee Access Control / SpikeArrest", "url": "https://cloud.google.com/apigee/docs/api-platform/reference/policies"},
+            {"title": "HTTP 403 Root Causes",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"},
+            {"title": "Quota Policy Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/policies/quota"},
+            {"title": "SpikeArrest Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/policies/spike-arrest"}
         ],
+
         "404": [
-            {"title": "Troubleshoot 404 Not Found", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404"},
-            {"title": "Apigee Routing & Basepath", "url": "https://cloud.google.com/apigee/docs/api-platform/fundamentals/what-is-apigee"},
+            {"title": "Apigee Basepath & Routing Debugging",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/fundamentals/develop-proxies"},
         ],
+
         "408": [
-            {"title": "Troubleshoot 408 Request Timeout", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/408"},
+            {"title": "HTTP 408 Request Timeout",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/408"},
+            {"title": "Target Timeout & Connection Settings (Apigee)",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/reference/endpoint-properties-reference"},
+            {"title": "Backend Latency Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/runtime/timeout-errors"}
         ],
+
         "429": [
-            {"title": "Rate Limiting & Quotas (Apigee)", "url": "https://cloud.google.com/apigee/docs/api-platform/reference/policies"},
+            {"title": "Quota Policy Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/policies/quota"},
+            {"title": "SpikeArrest Configuration Guide",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/reference/policies/spike-arrest-policy"}
         ],
+
         "500": [
-            {"title": "Troubleshoot 500 Internal Server Error", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"},
-            {"title": "Apigee Error Handling Best Practices", "url": "https://cloud.google.com/apigee/docs/api-platform/fundamentals"},
+            {"title": "500 Internal Server Error - Apigee Runtime Guide",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/runtime/500-internal-server-error"},
+            {"title": "Error Handling & Fault Rules Best Practices",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/fundamentals/fault-handling"},
+            {"title": "Debugging Proxy & Target Exceptions",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/debug/trace"}
         ],
+
         "502": [
-            {"title": "Troubleshoot 502 Bad Gateway", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502"},
-            {"title": "TLS Handshake & Backend Connectivity", "url": "https://cloud.google.com/load-balancing/docs/https"},
+            {"title": "502 Bad Gateway Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/runtime/502-bad-gateway"},
+            {"title": "TLS Handshake Failures Explained",
+            "url": "https://cloud.google.com/load-balancing/docs/ssl-certificates/troubleshooting"}
         ],
+
         "503": [
-            {"title": "Troubleshoot 503 Service Unavailable", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/503"},
-            {"title": "Resilience Patterns: Retries/Circuit Breakers", "url": "https://cloud.google.com/architecture/service-mesh-app-networking"},
+            {"title": "503 Service Unavailable Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/runtime/503-service-unavailable"},
+            {"title": "Backend Health & Autoscaling Guide",
+            "url": "https://cloud.google.com/architecture/resilient-app-engine-applications"}
         ],
+
         "504": [
-            {"title": "Troubleshoot 504 Gateway Timeout", "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/504"},
-            {"title": "Timeouts & Performance Tuning (Apigee)", "url": "https://cloud.google.com/apigee/docs/api-platform/reference/policies"},
+            {"title": "504 Gateway Timeout Troubleshooting",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/troubleshoot/runtime/504-gateway-timeout"},
+            {"title": "Timeout Configuration (Proxy & Target)",
+            "url": "https://cloud.google.com/apigee/docs/api-platform/reference/endpoint-properties-reference"}
         ],
     },
     "policy": {
