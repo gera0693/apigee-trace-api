@@ -1,12 +1,12 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from analyzer import analyze_trace
+from pcap_parser import analyze_pcap  
 
 app = FastAPI()
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],        # o ["http://localhost:4200", "http://127.0.0.1:4200"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -19,11 +19,20 @@ def health():
 @app.post("/analyze-trace")
 async def analyze(file: UploadFile = File(...)):
     content = await file.read()
-    xml_content = content.decode("utf-8")
+    try:
+        result = analyze_trace(content)  
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"XML parsing failed: {e}")
 
-    result = analyze_trace(xml_content)
-
-    return result
+@app.post("/analyze-pcap")
+async def analyze_pcap_file(file: UploadFile = File(...)):
+    content = await file.read()
+    try:
+        result = analyze_pcap(content)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"PCAP parsing failed: {e}")
 
 import os
 
