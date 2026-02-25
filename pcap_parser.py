@@ -43,6 +43,24 @@ TLS_ALERT_DESCRIPTIONS = {
     116: 'certificate_required', 120: 'no_application_protocol'
 }
 
+TLS_CIPHER_SUITES = {
+    0x1301: "TLS_AES_128_GCM_SHA256",
+    0x1302: "TLS_AES_256_GCM_SHA384",
+    0x1303: "TLS_CHACHA20_POLY1305_SHA256",
+    0xc02b: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+    0xc02c: "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+    0xc02f: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+    0xc030: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+    0xcca8: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+    0xcca9: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+    0x009c: "TLS_RSA_WITH_AES_128_GCM_SHA256",
+    0x009d: "TLS_RSA_WITH_AES_256_GCM_SHA384",
+    0xc013: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+    0xc014: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+    0x002f: "TLS_RSA_WITH_AES_128_CBC_SHA",
+    0x0035: "TLS_RSA_WITH_AES_256_CBC_SHA"
+}
+
 MAX_TIMESTAMPS_PER_ALERT = 20
 
 def iso_utc(ts: float) -> str:
@@ -160,10 +178,19 @@ class PacketAnalyzer:
                         info['handshake_type'] = 'Server Hello'
                         cipher_sel = getattr(m, 'cipher', None)
                         if cipher_sel is not None:
-                            info['cipher_suite'] = str(cipher_sel)
+                            # Convertimos el valor crudo a entero
+                            cipher_int = int(cipher_sel)
+                            # Buscamos el nombre en el diccionario, o mostramos el Hexadecimal si no está
+                            cipher_name = TLS_CIPHER_SUITES.get(cipher_int, f"Unknown (0x{cipher_int:04x})")
+                            
+                            info['cipher_suite'] = cipher_name
+                            
                             if info['cipher_suite'] not in cipher_names_seen:
                                 cipher_names_seen.add(info['cipher_suite'])
-                                tls_details['cipher_suites'].append({'name': info['cipher_suite'], 'connection': info['destination']})
+                                tls_details['cipher_suites'].append({
+                                    'name': info['cipher_suite'], 
+                                    'connection': info['destination']
+                                })
                     elif isinstance(m, TLSCertificate):
                         info['handshake_type'] = 'Certificate'
                     elif TLSAlert is not None and isinstance(m, TLSAlert):
