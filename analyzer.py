@@ -406,6 +406,20 @@ def _generate_text_report(analysis: Dict[str, Any]) -> str:
         if req.get("message"):
             add(f"Message: {req['message']}")
         add("")
+    
+    tls = analysis.get("tls") or {}
+    if tls:
+        add("TLS / CERTIFICATE SUMMARY")
+        add("-" * 80)
+        inbound = tls.get("inbound", {})
+        outbound = tls.get("outbound", {})
+        svc = tls.get("serviceConfig", {})
+        cc = tls.get("clientCert", {})
+        add(f"Inbound VHost: {inbound.get('virtualhost','-')}  SSL: {inbound.get('sslEnabled')}")
+        add(f"Outbound TLS: {outbound.get('handshakeStatus','-')}  ({outbound.get('handshakeTimeMs','-')} ms)")
+        add(f"Destination: {svc.get('destination','-')}  mTLS-to-target: {svc.get('clientauthenabled')}")
+        add(f"Client cert present: {cc.get('hasRawCert', False)}")
+        add("")
 
     policies = analysis.get("policies") or []
     if policies:
@@ -521,6 +535,127 @@ def _extract_top_level_metadata(root):
 
     return meta
 
+# --- NUEVO: TLS/Cert extractor ---
+def _extract_tls_cert_info(root: ET.Element) -> Dict[str, Any]:
+    tls: Dict[str, Any] = {
+        "inbound": {
+            "virtualhost": None,
+            "sslEnabled": None,
+            "port": None,
+            "aliases": None
+        },
+        "outbound": {
+            "handshakeStatus": None,
+            "handshakeTimeMs": None,
+            "tlsEnabled": None
+        },
+        "clientCert": {
+            "hasRawCert": False,
+            "rawCertBase64": None,
+            "thumbprintHeader": None,
+            "serial": None,
+            "protocol": None,
+            "cipher": None,
+            "fingerprint": None,
+            "verify": None,
+            "validTo": None,
+            "validRemain": None,
+            "curves": None,
+            "serverName": None
+        },
+        "serviceConfig": {
+            "sslenabled": None,
+            "clientauthenabled": None,
+            "keystore": None,
+            "keyalias": None,
+            "truststore": None,
+            "hostname": None,
+            "destination": None
+        }
+    }
+
+    # 1) Propiedades sueltas (virtualhost.*, targetendpoint_default.*)
+    for p in root.iter():
+        tag = (p.tag or "").lower()
+        if not tag.endswith("properties"):
+            continue
+        for prop in p.iter():
+            if (prop.tag or "").lower().endswith("property"):
+                name = (prop.get("name") or "").strip()
+                val  = (prop.text or "").strip()
+                if not name:
+                    continue
+
+                ln = name.lower()
+                # inbound
+                if ln == "virtualhost.name":               tls["inbound"]["virtualhost"] = val
+                elif ln == "virtualhost.ssl.enabled":     tls["inbound"]["sslEnabled"] = (val.lower()=="true")
+                elif ln == "virtualhost.port":            tls["inbound"]["port"] = val
+                elif ln in ("virtualhost.aliases", "virtualhost.aliases.values"):
+                    tls["inbound"]["aliases"] = val
+
+                # outbound (handshake)
+                elif ln == "targetendpoint_default.tlshandshakestatus":
+                    tls["outbound"]["handshakeStatus"] = val
+                elif ln == "targetendpoint_default.connectiontlshandshaketimems":
+                    try: tls["outbound"]["handshakeTimeMs"] = float(val)
+                    except: tls["outbound"]["handshakeTimeMs"] = None
+                elif ln == "targetendpoint_default.istlsenabled":
+                    tls["outbound"]["tlsEnabled"] = (val.lower()=="true")
+
+    # 2) Variables/headers fiserv-Apigee.ssl_client_s_* y WAF thumbprint
+    def set_if(name_substr: str, key: str):
+        for va in root.iter():
+            if (va.tag or "").lower().endswith("get") or (va.tag or "").lower().endswith("set"):
+                n = (va.get("name") or "").lower()
+                if name_substr in n:
+                    v = va.get("value")
+                    if v is not None and v != "":
+                        tls["clientCert"][key] = v
+                        if key == "rawCertBase64":
+                            tls["clientCert"]["hasRawCert"] = True
+                    # si sólo es acceso sin valor, lo dejamos como None
+
+    set_if("request.header.fiserv-apigee.ssl_client_s_client_raw_cert", "rawCertBase64")
+    set_if("request.header.fiserv-apigee.ssl_client_s_serial", "serial")
+    set_if("request.header.fiserv-apigee.ssl_client_s_protocol", "protocol")
+    set_if("request.header.fiserv-apigee.ssl_client_s_cipher", "cipher")
+    set_if("request.header.fiserv-apigee.ssl_client_s_client_fingerprint", "fingerprint")
+    set_if("request.header.fiserv-apigee.ssl_client_s_client_v_end", "validTo")
+    set_if("request.header.fiserv-apigee.ssl_client_s_client_v_remain", "validRemain")
+    set_if("request.header.fiserv-apigee.ssl_client_s_client_verify", "verify")
+    set_if("request.header.fiserv-apigee.ssl_client_s_curves", "curves")
+    set_if("request.header.fiserv-apigee.ssl_client_s_server_name", "serverName")
+    set_if("request.header.waf-fiserv-client_thumbprint", "thumbprintHeader")
+
+    # 3) SOAPResult (resumen de destino y flags TLS)
+    for node in root.iter():
+        if (node.tag or "").lower().endswith("variableaccess"):
+            for child in node.iter():
+                if (child.tag or "").lower().endswith("set") and (child.get("name") == "SOAPResult"):
+                    xml = child.get("value") or ""
+                    if xml.strip().startswith("<"):
+                        try:
+                            sroot = ET.fromstring(xml)
+                            # <root><soapresult>...</soapresult></root>
+                            s = sroot.find(".//soapresult")
+                            if s is not None:
+                                def txt(tag): 
+                                    e = s.find(tag)
+                                    return (e.text or "").strip() if e is not None else None
+                                tls["serviceConfig"].update({
+                                    "destination":     txt("destination"),
+                                    "sslenabled":      (txt("sslenabled") or "").lower() == "true",
+                                    "clientauthenabled": (txt("clientauthenabled") or "").lower() == "true",
+                                    "keystore":        txt("keystore"),
+                                    "keyalias":        txt("keyalias"),
+                                    "truststore":      txt("truststore"),
+                                    "hostname":        txt("hostname"),
+                                })
+                        except Exception:
+                            pass
+    return tls
+
 # -------------------- función pública --------------------
 def analyze_trace(xml_content: str, verbose: bool = False) -> Dict[str, Any]:
     """
@@ -597,6 +732,8 @@ def analyze_trace(xml_content: str, verbose: bool = False) -> Dict[str, Any]:
     analysis["report_text"] = _generate_text_report(analysis)
     
     analysis["metadata"] = _extract_top_level_metadata(root)
+
+    analysis["tls"] = _extract_tls_cert_info(root)
 
     # Éxito
     analysis["status"] = "ok"
